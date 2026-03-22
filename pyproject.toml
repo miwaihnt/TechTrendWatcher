@@ -24,7 +24,7 @@ dependencies = [
 packages = ["src/techtrendwatcher"]
 
 [project.scripts]
-ttw = "techtrendwatcher.main:main"
+ttw = "techtrendwatcher.main:run"
 
 [tool.uv]
 package = true
