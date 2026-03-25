@@ -1,14 +1,17 @@
 from functools import lru_cache
+
 import pytest
+
 from techtrendwatcher.core.config import get_settings
 from techtrendwatcher.core.exceptions import ConfigurationError
-
 
 """
 正常系のテスト
 """
+
+
 @lru_cache
-def test_setting_config_collect(monkeypatch,tmp_path):
+def test_setting_config_collect(monkeypatch):
 
     # cacheリセット
     get_settings.cache_clear()
@@ -20,26 +23,30 @@ def test_setting_config_collect(monkeypatch,tmp_path):
     monkeypatch.setenv("notion_database_id", "fake_db_id")
     monkeypatch.setenv("notion_semaphore", "5")
 
-   # Snowflakeの設定（ネストしてるから 'snowflake_' をつけるのよ！）
+    # Snowflakeの設定（ネストしてるから 'snowflake_' をつけるのよ！）
     monkeypatch.setenv("snowflake_account", "fake_account")
     monkeypatch.setenv("snowflake_user", "fake_user")
     monkeypatch.setenv("snowflake_password", "fake_password")
     monkeypatch.setenv("snowflake_role", "fake_role")
     monkeypatch.setenv("snowflake_warehouse", "fake_warehouse")
     monkeypatch.setenv("snowflake_database", "fake_db")
-    monkeypatch.setenv("snowflake_schema", "fake_schema") # alias="schema" だからこれでOK
+    monkeypatch.setenv(
+        "snowflake_schema", "fake_schema"
+    )  # alias="schema" だからこれでOK
     monkeypatch.setenv("snowflake_table", "fake_table")
 
     # 実行
     settings = get_settings()
     assert settings.github_token == "fake_github_token"
-   
+
 
 """
 異常系テスト環境設定
 """
+
+
 @lru_cache
-def test_setting_config_raise_error(monkeypatch,tmp_path):
+def test_setting_config_raise_error(monkeypatch, tmp_path):
 
     # cacheリセット
     get_settings.cache_clear()
@@ -49,7 +56,7 @@ def test_setting_config_raise_error(monkeypatch,tmp_path):
     monkeypatch.chdir(tmp_path)
 
     # 環境変数を空にする
-    monkeypatch.delenv("notion_token",raising=False)
+    monkeypatch.delenv("notion_token", raising=False)
 
     # ConfigurationErrorの発生を期待
     with pytest.raises(ConfigurationError) as exinfo:

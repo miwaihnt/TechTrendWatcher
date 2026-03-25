@@ -1,46 +1,54 @@
-from pydantic import BaseModel, ConfigDict, model_validator
-from typing import List, Any
 from datetime import datetime
+from typing import Any
 
-
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 """GithubAPIのItems内の各要素"""
+
+
 class GithubAPIItem(BaseModel):
-    id:int
-    name:str
-    html_url:str
-    stargazers_count:int
-    description:str
-    language:str | None = None
-    topics:List[str]  
+    id: int
+    name: str
+    html_url: str
+    stargazers_count: int
+    description: str
+    language: str | None = None
+    topics: list[str]
+
 
 """Notionに蓄積する必要なものだけを集めたclass"""
+
+
 class GithubAPISummary(BaseModel):
-    total_count:int
-    items:List[GithubAPIItem] = []
+    total_count: int
+    items: list[GithubAPIItem] = []
 
 
 """Githubから取得する全量を保持"""
+
+
 class GithubAPIFull(BaseModel):
     model_config = ConfigDict(extra="allow")
-    total_count:int
-    incomplete_results:bool
-    items:List[GithubAPIItem] | None = []
-    row_data:dict | None = None
+    total_count: int
+    incomplete_results: bool
+    items: list[GithubAPIItem] = Field(default_factory=list)
+    row_data: dict[str, Any] | None = None
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
-    def capture_raw_data(cls, data:Any) -> Any:
-        if isinstance(data,dict):
-            data['row_data'] = data
+    def capture_raw_data(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            data["row_data"] = data
         return data
 
+
 """SnowflakeといったWHのRaw層に蓄積するclass"""
+
+
 class GithubSilverRecord(BaseModel):
-    id:int
-    name:str
+    id: int
+    name: str
     stargazers_count: int
     search_query: str
     captured_at: datetime
-    raw_data:dict
-
+    raw_data: dict[str, Any]
