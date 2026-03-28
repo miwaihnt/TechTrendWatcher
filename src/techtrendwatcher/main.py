@@ -4,7 +4,19 @@ from typing import Any
 import httpx
 
 from techtrendwatcher.core.config import get_settings
-from techtrendwatcher.core.exceptions import ConfigurationError, GitHubAPIError, GitHubAuthError, GitHubRateLimitError, GitHubValidationError, NotionAPIError, NotionAuthError, NotionRateLimitError, NotionResourceNotFoundError, NotionValidationError, SnowflakeAPIError, SnowflakeAuthError
+from techtrendwatcher.core.exceptions import (
+    ConfigurationError,
+    GitHubAPIError,
+    GitHubAuthError,
+    GitHubRateLimitError,
+    NotionAPIError,
+    NotionAuthError,
+    NotionRateLimitError,
+    NotionResourceNotFoundError,
+    NotionValidationError,
+    SnowflakeAPIError,
+    SnowflakeAuthError,
+)
 from techtrendwatcher.core.logger import get_logger, setup_logging
 from techtrendwatcher.github.client import GithubClient
 from techtrendwatcher.github.processor import (
@@ -86,24 +98,24 @@ async def main() -> None:
                 # tokenが不正
                 logger.critical(f"認証エラー！トークンを確認して:{e}")
                 return
-            
-            except (GitHubRateLimitError,NotionRateLimitError) as e:
+
+            except (GitHubRateLimitError, NotionRateLimitError) as e:
                 # リクエスト過多
                 logger.warning(f"リクエストレート制限！しばらく待つ:{e}")
                 return
-            
+
             except NotionResourceNotFoundError as e:
                 logger.warning(f"Notionのデータベースを見つけられません:{e}")
                 return
-            
+
             except NotionValidationError as e:
                 logger.warning(f"リクエストが不正です：{e}")
                 continue
-            
+
             except (GitHubAPIError, NotionAPIError, SnowflakeAPIError) as e:
                 # それ以外のエラー
                 logger.error(f"APIの連携でエラー:{e}")
-                continue                    
+                continue
 
             except Exception as e:
                 # 予期せぬエラー

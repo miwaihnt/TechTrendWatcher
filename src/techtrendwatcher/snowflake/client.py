@@ -4,8 +4,8 @@ import polars as pl
 from snowflake.snowpark import Session
 
 from techtrendwatcher.core.config import SnowflakeConfig
-from techtrendwatcher.core.logger import get_logger
 from techtrendwatcher.core.exceptions import SnowflakeAPIError, SnowflakeAuthError
+from techtrendwatcher.core.logger import get_logger
 
 
 class SnowflakeClient:
@@ -19,7 +19,9 @@ class SnowflakeClient:
                 account_parameter.model_dump(by_alias=True)
             ).create()
         except Exception as e:
-            raise SnowflakeAuthError(f"Snowflakeへの接続に失敗:{e}", original_error= e) from e
+            raise SnowflakeAuthError(
+                f"Snowflakeへの接続に失敗:{e}", original_error=e
+            ) from e
 
     async def upload_to_snowflake(self, df: pl.DataFrame) -> None:
 
@@ -37,7 +39,8 @@ class SnowflakeClient:
                 table_name=self.table_name,
                 auto_create_table=True,
             )
-        
-        except Exception as e:
-            raise SnowflakeAPIError(f"Snowflakeへの書き込みに失敗:{e}", original_error= e) from e
 
+        except Exception as e:
+            raise SnowflakeAPIError(
+                f"Snowflakeへの書き込みに失敗:{e}", original_error=e
+            ) from e

@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Any
+from http import HTTPStatus
+from typing import Any, NoReturn
 
 import httpx
 from tenacity import (
@@ -10,11 +11,15 @@ from tenacity import (
 )
 
 from techtrendwatcher.core.config import get_settings
+from techtrendwatcher.core.exceptions import (
+    NotionAPIError,
+    NotionAuthError,
+    NotionRateLimitError,
+    NotionResourceNotFoundError,
+    NotionValidationError,
+)
 from techtrendwatcher.core.logger import get_logger
 
-from techtrendwatcher.core.exceptions import NotionAPIError, NotionAuthError, NotionRateLimitError, NotionResourceNotFoundError, NotionValidationError
-
-HTTP_OK = 200
 # リトライ設定の定数化
 NOTION_RETRY_MULTIPLIER = 1
 NOTION_RETRY_MIN_WAIT = 2
@@ -48,33 +53,32 @@ class NotionClient:
             "Notion-Version": "2022-06-28",
         }
 
-
-    async def _handle_http_error(self, e: httpx.HTTPStatusError) -> None:
-        status_code =  e.response.status_code
-        if status_code == 401:
-            raise NotionAuthError("Notionトークンが無効です。確認してください", status_code= status_code, original_error= e) from e
-        if status_code == 404:
+    async def _handle_http_error(self, e: httpx.HTTPStatusError) -> NoReturn:
+        status_code = e.response.status_code
+        if status_code == HTTPStatus.UNAUTHORIZED:
+            raise NotionAuthError(
+                "Notionトークンが無効です。確認してください",
+                status_code=status_code,
+                original_error=e,
+            ) from e
+        if status_code == HTTPStatus.NOT_FOUND:
             raise NotionResourceNotFoundError(
                 "DBが見つからない。IDを確認せよ",
-                status_code= status_code,
-                original_error= e
+                status_code=status_code,
+                original_error=e,
             ) from e
-        if status_code == 429:
+        if status_code == HTTPStatus.TOO_MANY_REQUESTS:
             raise NotionRateLimitError(
-                "Notionのレート制限です",
-                status_code= status_code,
-                original_error= e
-            ) from e  
-        if status_code == 400:
+                "Notionのレート制限です", status_code=status_code, original_error=e
+            ) from e
+        if status_code == HTTPStatus.BAD_REQUEST:
             raise NotionValidationError(
-                "リクエストが不正です",
-                status_code= status_code,
-                original_error= e
+                "リクエストが不正です", status_code=status_code, original_error=e
             ) from e
         raise NotionAPIError(
             f"Notion APIでエラーが発生した：{e}",
-            status_code= status_code,
-            original_error= e
+            status_code=status_code,
+            original_error=e,
         ) from e
 
     """
@@ -129,7 +133,9 @@ class NotionClient:
             await self._handle_http_error(e)
         except Exception as e:
             if not isinstance(e, NotionAPIError):
-                raise NotionAPIError(f"想定外の理由でNotionへの検索が失敗:{e}", original_error= e) from e
+                raise NotionAPIError(
+                    f"想定外の理由でNotionへの検索が失敗:{e}", original_error=e
+                ) from e
             raise
 
     """
@@ -168,16 +174,18 @@ class NotionClient:
             if not isinstance(data, dict):
                 raise NotionAPIError(
                     f"Notionからのレスポンス形式が不正です（期待: dict, 実際: {type(data)}）",
-                    status_code= response.status_code
+                    status_code=response.status_code,
                 )
-            
+
             return data
-            
+
         except httpx.HTTPStatusError as e:
             await self._handle_http_error(e)
         except Exception as e:
             if not isinstance(e, NotionAPIError):
-                raise NotionAPIError(f"想定外の理由でNotionの書き込みが失敗:{e}", original_error= e) from e
+                raise NotionAPIError(
+                    f"想定外の理由でNotionの書き込みが失敗:{e}", original_error=e
+                ) from e
             raise
 
     """
@@ -204,15 +212,20 @@ class NotionClient:
                 endpoint, headers=self.headers, json=payload
             )
             response.raise_for_status()
-            if response.status_code != HTTP_OK:
+            if response.status_code != HTTPStatus.OK:
                 self.logger.info(f"Notion Update Error Detail: {response.text}")
             data = response.json()
             if not isinstance(data, dict):
-                raise NotionAPIError(f"Notionのページ更新のレスポンスが不正です。data:{data}",status_code= response.status_code)
+                raise NotionAPIError(
+                    f"Notionのページ更新のレスポンスが不正です。data:{data}",
+                    status_code=response.status_code,
+                )
             return data
         except httpx.HTTPStatusError as e:
-            await self._handle_http_error(e)        
+            await self._handle_http_error(e)
         except Exception as e:
             if not isinstance(e, NotionAPIError):
-                raise NotionAPIError(f"想定外の理由でNotionの更新が失敗:{e}", original_error= e) from e
+                raise NotionAPIError(
+                    f"想定外の理由でNotionの更新が失敗:{e}", original_error=e
+                ) from e
             raise
