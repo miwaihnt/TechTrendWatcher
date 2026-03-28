@@ -4,7 +4,7 @@ from typing import Any
 import httpx
 
 from techtrendwatcher.core.config import get_settings
-from techtrendwatcher.core.exceptions import ConfigurationError
+from techtrendwatcher.core.exceptions import ConfigurationError, GitHubAPIError, GitHubAuthError, GitHubRateLimitError, GitHubValidationError, NotionAPIError, NotionAuthError, NotionRateLimitError, NotionResourceNotFoundError, NotionValidationError, SnowflakeAPIError, SnowflakeAuthError
 from techtrendwatcher.core.logger import get_logger, setup_logging
 from techtrendwatcher.github.client import GithubClient
 from techtrendwatcher.github.processor import (
@@ -14,7 +14,7 @@ from techtrendwatcher.github.processor import (
     save_as_parquet,
 )
 from techtrendwatcher.notion.client import NotionClient
-from techtrendwatcher.snowflake.client import Client
+from techtrendwatcher.snowflake.client import SnowflakeClient
 
 
 async def main() -> None:
@@ -22,7 +22,7 @@ async def main() -> None:
     # logingの初期設定
     setup_logging()
     logger = get_logger(__name__)
-    logger.info("Stargint techtrendwatcher")
+    logger.info("starting techtrendwatcher")
 
     # 各種.envの設定
     try:
@@ -45,23 +45,23 @@ async def main() -> None:
                 await notion_client.upsert_repo(row)
 
         for query in settings.search_query:
+            """
+            ここから一連の処理
+            1. Githubからの取得
+            2. 加工と保存
+            3. Notionの更新
+            4. Snowflakeのロード
+            """
+            logger.info(f"processing search query:{query}")
             try:
-                """
-                ここから一連の処理
-                1. Githubからの取得
-                2. 加工と保存
-                3. Notionの更新
-                4. Snowflakeのロード
-                """
-                logger.info(f"processing serch query:{query}")
                 result = await client.search_github(query)
 
                 # notiony用のgithub api responseをpolarsで処理
                 co_git_api_res = convert_to_dataframe(result)
 
                 # snowflake用のgithub api responseをpolarsで処理
-                snowflake_git_serch_to_pl = convert_to_silver_dataframe(result, query)
-                logger.info(f"snowflake_git_serch_to_pl:{snowflake_git_serch_to_pl}")
+                snowflake_git_search_to_pl = convert_to_silver_dataframe(result, query)
+                logger.info(f"snowflake_git_search_to_pl:{snowflake_git_search_to_pl}")
                 # githubのレスポンスをparquetで保存
                 save_as_parquet(co_git_api_res, query)
 
@@ -78,12 +78,36 @@ async def main() -> None:
                 """
                 snowflakefへの書き込み
                 """
-                snowflake_client = Client(settings.snowflake)
-                await snowflake_client.upload_to_snowflake(snowflake_git_serch_to_pl)
+                snowflake_client = SnowflakeClient(settings.snowflake)
+                await snowflake_client.upload_to_snowflake(snowflake_git_search_to_pl)
                 logger.info(f"Success:{query}")
 
+            except (GitHubAuthError, NotionAuthError, SnowflakeAuthError) as e:
+                # tokenが不正
+                logger.critical(f"認証エラー！トークンを確認して:{e}")
+                return
+            
+            except (GitHubRateLimitError,NotionRateLimitError) as e:
+                # リクエスト過多
+                logger.warning(f"リクエストレート制限！しばらく待つ:{e}")
+                return
+            
+            except NotionResourceNotFoundError as e:
+                logger.warning(f"Notionのデータベースを見つけられません:{e}")
+                return
+            
+            except NotionValidationError as e:
+                logger.warning(f"リクエストが不正です：{e}")
+                continue
+            
+            except (GitHubAPIError, NotionAPIError, SnowflakeAPIError) as e:
+                # それ以外のエラー
+                logger.error(f"APIの連携でエラー:{e}")
+                continue                    
+
             except Exception as e:
-                logger.error(f"Failed to process {query}, Error:{e}")
+                # 予期せぬエラー
+                logger.error(f"予期せぬエラーが発生：{e}")
 
 
 def run() -> None:
