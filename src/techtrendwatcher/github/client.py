@@ -4,7 +4,7 @@ from typing import Any
 import httpx
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
 )
@@ -25,6 +25,34 @@ GITHUB_RETRY_MIN_WAIT = 4
 GITHUB_RETRY_MAX_WAIT = 60
 GITHUB_RETRY_MAX_ATTEMPTS = 5
 
+# retry条件を決める
+def is_retryable_error(exception: Exception) -> bool:
+    # timeout
+    if isinstance(exception, httpx.RequestError):
+        return True
+    # レート制限
+    if isinstance(exception, GitHubRateLimitError):
+        return True
+
+    # 500のサーバエラー
+    if isinstance(exception, GitHubAPIError) and exception.status_code in [
+        500,
+        502,
+        503,
+        504,
+    ]:
+        return True
+
+    return False
+
+
+def retry_log(retry_state):
+    logger = get_logger(__name__)
+    logger.warning(
+        f"GitHub APIのリトライ中。。。"
+        f"試行回数: {retry_state.attempt_number}"
+        f"例外: {retry_state.outcome.exception()}"
+    )
 
 
 class GithubClient:
@@ -44,7 +72,9 @@ class GithubClient:
         # 最大リトライ５回
         stop=stop_after_attempt(GITHUB_RETRY_MAX_ATTEMPTS),
         # httpx.HttpStatusError (4xx,5xx)が発生した時にリトライ対象
-        retry=retry_if_exception_type((GitHubRateLimitError, httpx.RequestError)),
+        retry=retry_if_exception(is_retryable_error),
+        # before
+        before_sleep=retry_log,
         # 最終的に失敗した時に元の例外を投げる
         reraise=True,
     )
