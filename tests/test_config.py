@@ -1,5 +1,3 @@
-from functools import lru_cache
-
 import pytest
 
 from techtrendwatcher.core.config import get_settings
@@ -10,11 +8,7 @@ from techtrendwatcher.core.exceptions import ConfigurationError
 """
 
 
-@lru_cache
 def test_setting_config_collect(monkeypatch):
-
-    # cacheリセット
-    get_settings.cache_clear()
 
     # テスト用の環境変数をセット
     # Github
@@ -45,11 +39,7 @@ def test_setting_config_collect(monkeypatch):
 """
 
 
-@lru_cache
 def test_setting_config_raise_error(monkeypatch, tmp_path):
-
-    # cacheリセット
-    get_settings.cache_clear()
 
     # カレントディレクトリを空ディレクトリに移動
     # .envを見えなくする
