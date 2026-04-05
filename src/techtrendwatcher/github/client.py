@@ -25,6 +25,7 @@ GITHUB_RETRY_MIN_WAIT = 4
 GITHUB_RETRY_MAX_WAIT = 60
 GITHUB_RETRY_MAX_ATTEMPTS = 5
 
+
 # retry条件を決める
 def is_retryable_error(exception: Exception) -> bool:
     # timeout
@@ -34,14 +35,11 @@ def is_retryable_error(exception: Exception) -> bool:
     if isinstance(exception, GitHubRateLimitError):
         return True
 
-    # 500のサーバエラー
-    if isinstance(exception, GitHubAPIError) and exception.status_code in [
-        500,
-        502,
-        503,
-        504,
-    ]:
-        return True
+    if isinstance(exception, GitHubAPIError):
+        if getattr(exception, "original_error", None) and isinstance(exception.original_error, httpx.RequestError):
+            return True
+        if exception.status_code in [500, 502, 503, 504]:
+            return True
 
     return False
 
