@@ -20,7 +20,9 @@ def convert_to_silver_dataframe(github_resp: GithubAPIFull, query: str) -> pl.Da
         captured_at=pl.lit(datetime.now()),
         raw_data=pl.Series(items_as_dict, dtype=pl.Object),
     )
-    return df.select(["id", "name", "stargazers_count", "search_query", "raw_data"])
+    return df.select(
+        ["id", "name", "stargazers_count", "search_query", "raw_data", "captured_at"]
+    )
 
 
 """
