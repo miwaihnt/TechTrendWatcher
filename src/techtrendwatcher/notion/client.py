@@ -5,7 +5,7 @@ from typing import Any, NoReturn
 import httpx
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
 )
@@ -26,6 +26,23 @@ NOTION_RETRY_MIN_WAIT = 2
 NOTION_RETRY_MAX_WAIT = 10
 NOTION_RETRY_MAX_ATTEMPTS = 3
 
+def retry_log(retry_state):
+    logger = get_logger(__name__)
+    logger.warning(
+        f"Notion API接続でリトライ"
+        f"retry回数:{retry_state.attempt_number}"
+        f"Error:{retry_state.outcome.exception()}"
+        )
+    
+def is_retryable_error(e:Exception):
+    if isinstance(e, httpx.RequestError):
+        return True
+    elif isinstance(e, NotionRateLimitError):
+        return True
+    elif isinstance(e, NotionAPIError) and e.status_code in [500, 502, 503, 504]:
+        return True
+    return False
+    
 
 notion_retry = retry(
     wait=wait_exponential(
@@ -34,10 +51,10 @@ notion_retry = retry(
         max=NOTION_RETRY_MAX_WAIT,
     ),
     stop=stop_after_attempt(NOTION_RETRY_MAX_ATTEMPTS),
-    retry=retry_if_exception_type((httpx.HTTPStatusError, httpx.ConnectError)),
+    retry=retry_if_exception(is_retryable_error),
+    before_sleep=retry_log,
     reraise=True,
 )
-
 
 class NotionClient:
     def __init__(self, client: httpx.AsyncClient):
