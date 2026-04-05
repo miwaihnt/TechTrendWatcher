@@ -26,13 +26,12 @@ class GithubAPISummary(BaseModel):
 
 """Githubから取得する全量を保持"""
 
-
 class GithubAPIFull(BaseModel):
     model_config = ConfigDict(extra="allow")
     total_count: int
     incomplete_results: bool
     items: list[GithubAPIItem] = Field(default_factory=list)
-    row_data: dict[str, Any] | None = None
+    raw_data: dict[str, Any] | None = None
 
     @model_validator(mode="before")
     @classmethod
