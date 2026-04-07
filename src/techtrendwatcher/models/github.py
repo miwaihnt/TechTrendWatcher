@@ -26,6 +26,7 @@ class GithubAPISummary(BaseModel):
 
 """Githubから取得する全量を保持"""
 
+
 class GithubAPIFull(BaseModel):
     model_config = ConfigDict(extra="allow")
     total_count: int

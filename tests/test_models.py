@@ -1,12 +1,14 @@
+# ruff: noqa: PLR2004
+from datetime import datetime
+
 import pytest
 from pydantic import ValidationError
-from datetime import datetime
+
 from techtrendwatcher.models.github import (
     GithubAPIFull,
     GithubAPIItem,
     GithubSilverRecord,
 )
-
 
 """
 GithubAPIItemの異常系テスト
@@ -19,7 +21,7 @@ def test_github_api_item_fail():
 
     with pytest.raises(ValidationError) as exinfo:
         GithubAPIItem(**invalid_data)
-    errors = exinfo.value.errors()
+    exinfo.value.errors()
     assert "html_url" in str(exinfo.value)
 
 
@@ -62,7 +64,7 @@ def test_github_api_full_raw_data():
     full_model = GithubAPIFull(**data)
 
     assert full_model.total_count == 1
-    assert full_model.incomplete_results == False
+    assert not full_model.incomplete_results
     assert full_model.row_data["extra_field"] == "row_dataの中身"
 
 

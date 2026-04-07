@@ -36,7 +36,9 @@ def is_retryable_error(exception: Exception) -> bool:
         return True
 
     if isinstance(exception, GitHubAPIError):
-        if getattr(exception, "original_error", None) and isinstance(exception.original_error, httpx.RequestError):
+        if getattr(exception, "original_error", None) and isinstance(
+            exception.original_error, httpx.RequestError
+        ):
             return True
         if exception.status_code in [500, 502, 503, 504]:
             return True

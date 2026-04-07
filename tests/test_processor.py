@@ -1,6 +1,7 @@
-import pytest
-import polars as pl
+# ruff: noqa: PLR2004
 from datetime import datetime
+
+import polars as pl
 
 from techtrendwatcher.github.processor import (
     convert_to_silver_dataframe,

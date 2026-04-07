@@ -26,23 +26,30 @@ NOTION_RETRY_MIN_WAIT = 2
 NOTION_RETRY_MAX_WAIT = 10
 NOTION_RETRY_MAX_ATTEMPTS = 3
 
+
 def retry_log(retry_state):
     logger = get_logger(__name__)
     logger.warning(
         f"Notion API接続でリトライ"
         f"retry回数:{retry_state.attempt_number}"
         f"Error:{retry_state.outcome.exception()}"
-        )
-    
-def is_retryable_error(e:Exception):
+    )
+
+
+def is_retryable_error(e: Exception):
     if isinstance(e, httpx.RequestError):
         return True
-    elif isinstance(e, NotionRateLimitError):
+    if isinstance(e, NotionRateLimitError):
         return True
-    elif isinstance(e, NotionAPIError) and e.status_code in [500, 502, 503, 504]:
-        return True
+    if isinstance(e, NotionAPIError):
+        if getattr(e, "original_error", None) and isinstance(
+            e.original_error, httpx.RequestError
+        ):
+            return True
+        if e.status_code in [500, 502, 503, 504]:
+            return True
     return False
-    
+
 
 notion_retry = retry(
     wait=wait_exponential(
@@ -55,6 +62,7 @@ notion_retry = retry(
     before_sleep=retry_log,
     reraise=True,
 )
+
 
 class NotionClient:
     def __init__(self, client: httpx.AsyncClient):
@@ -78,6 +86,14 @@ class NotionClient:
                 status_code=status_code,
                 original_error=e,
             ) from e
+
+        if status_code == HTTPStatus.FORBIDDEN:
+            raise NotionAuthError(
+                "オブジェクトにアクセスする権限がありません",
+                status_code=status_code,
+                original_error=e,
+            )
+
         if status_code == HTTPStatus.NOT_FOUND:
             raise NotionResourceNotFoundError(
                 "DBが見つからない。IDを確認せよ",
