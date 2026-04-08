@@ -49,9 +49,9 @@ def is_retryable_error(exception: Exception) -> bool:
 def retry_log(retry_state):
     logger = get_logger(__name__)
     logger.warning(
-        f"GitHub APIのリトライ中。。。"
-        f"試行回数: {retry_state.attempt_number}"
-        f"例外: {retry_state.outcome.exception()}"
+        "GitHub APIのリトライ中。。。",
+        retry_cnt = retry_state.attempt_number,
+        retry_reason = retry_state.outcome.exception()
     )
 
 

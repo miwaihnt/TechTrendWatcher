@@ -30,17 +30,16 @@ from techtrendwatcher.snowflake.client import SnowflakeClient
 
 
 async def main() -> None:
-
-    # logingの初期設定
+    # loggingの初期設定
     setup_logging()
     logger = get_logger(__name__)
-    logger.info("starting techtrendwatcher")
+    logger.info("pipeline_startup")
 
     # 各種.envの設定
     try:
         settings = get_settings()
     except ConfigurationError as e:
-        logger.error(f"起動時の設定ファイルエラー:{e}", exc_info=True)
+        logger.error("config_load_failed", error=str(e))
         return
 
     # httpクライアントの作成
@@ -64,7 +63,7 @@ async def main() -> None:
             3. Notionの更新
             4. Snowflakeのロード
             """
-            logger.info(f"processing search query:{query}")
+            logger.info("process_query_start", query=query)
             try:
                 result = await client.search_github(query)
 
@@ -73,7 +72,12 @@ async def main() -> None:
 
                 # snowflake用のgithub api responseをpolarsで処理
                 snowflake_git_search_to_pl = convert_to_silver_dataframe(result, query)
-                logger.info(f"snowflake_git_search_to_pl:{snowflake_git_search_to_pl}")
+                logger.info(
+                    "github_data_processed",
+                    query=query,
+                    count=len(snowflake_git_search_to_pl),
+                )
+
                 # githubのレスポンスをparquetで保存
                 save_as_parquet(co_git_api_res, query)
 
@@ -86,40 +90,41 @@ async def main() -> None:
                 # Notionにすでにレコードがあるかチェックし、upsertを行う(並列実行)
                 tasks = [limited_upsert(row) for row in trend_df.to_dicts()]
                 await asyncio.gather(*tasks)
+                logger.info("notion_upsert_completed", query=query, count=len(trend_df))
 
                 """
-                snowflakefへの書き込み
+                snowflakeへの書き込み
                 """
                 snowflake_client = SnowflakeClient(settings.snowflake)
                 await snowflake_client.upload_to_snowflake(snowflake_git_search_to_pl)
-                logger.info(f"Success:{query}")
+                logger.info("snowflake_upload_success", query=query)
 
             except (GitHubAuthError, NotionAuthError, SnowflakeAuthError) as e:
                 # tokenが不正
-                logger.critical(f"認証エラー！トークンを確認して:{e}")
+                logger.critical("auth_error_abort", error=str(e))
                 return
 
             except (GitHubRateLimitError, NotionRateLimitError) as e:
                 # リクエスト過多
-                logger.warning(f"リクエストレート制限！しばらく待つ:{e}")
+                logger.warning("rate_limit_abort", error=str(e))
                 return
 
             except NotionResourceNotFoundError as e:
-                logger.warning(f"Notionのデータベースを見つけられません:{e}")
+                logger.warning("notion_db_not_found", error=str(e))
                 return
 
             except NotionValidationError as e:
-                logger.warning(f"リクエストが不正です：{e}")
+                logger.warning("notion_validation_error_skip", error=str(e))
                 continue
 
             except (GitHubAPIError, NotionAPIError, SnowflakeAPIError) as e:
                 # それ以外のエラー
-                logger.error(f"APIの連携でエラー:{e}")
+                logger.error("api_integration_failed_skip", error=str(e))
                 continue
 
             except Exception as e:
                 # 予期せぬエラー
-                logger.error(f"予期せぬエラーが発生：{e}")
+                logger.error("unexpected_error_occurred", error=str(e))
 
 
 def run() -> None:

@@ -30,9 +30,9 @@ NOTION_RETRY_MAX_ATTEMPTS = 3
 def retry_log(retry_state):
     logger = get_logger(__name__)
     logger.warning(
-        f"Notion API接続でリトライ"
-        f"retry回数:{retry_state.attempt_number}"
-        f"Error:{retry_state.outcome.exception()}"
+        "Notion API接続でリトライ",
+        retry_cnt = retry_state.attempt_number,
+        retry_reason = retry_state.outcome.exception()
     )
 
 
@@ -154,7 +154,7 @@ class NotionClient:
             if len(results) > 0:
                 page_id = results[0]["id"]
                 if isinstance(page_id, str):
-                    self.logger.info(f"notionのクエリ成功:{page_id}")
+                    self.logger.info("success_notion_query", page_id = page_id)
                     return page_id
                 else:
                     raise ValueError(f"Unexpexted page_id type: {type(page_id)}")

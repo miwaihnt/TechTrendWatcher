@@ -16,6 +16,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "requests>=2.32.5",
     "snowflake-snowpark-python>=1.45.0",
+    "structlog>=25.5.0",
     "tenacity>=9.1.4",
 ]
 

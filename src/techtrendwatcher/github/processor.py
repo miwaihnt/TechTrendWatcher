@@ -59,7 +59,7 @@ def save_as_parquet(df: pl.DataFrame, query: str) -> None:
     save_path = save_dir / f"github_repos_{timestamp}.parquet"
 
     df.write_parquet(save_path)
-    logger.info(f"DataFrameを保存しました：{save_path} 行数:{len(df)}")
+    logger.info("save_dataframe_to_file", parquet_path=str(save_path))
 
 
 """
@@ -82,7 +82,7 @@ def get_trend_dataframe(current_df: pl.DataFrame, query: str) -> pl.DataFrame:
     sorted_files = sorted(file_dir.glob("*.parquet"))
     if len(sorted_files) >= compare_file_num:
         prev_file = sorted_files[-2]
-        logger.info(f"前回ファイルの取得！sorted_files:{sorted_files[-2]}")
+        logger.info("get_prev_file", compare_prev_file = sorted_files[-2].name)
         # 取得した過去ファイルをpolarsで読み込む
         prev_df = pl.read_parquet(prev_file)
 
@@ -96,7 +96,7 @@ def get_trend_dataframe(current_df: pl.DataFrame, query: str) -> pl.DataFrame:
             )
         ).filter(pl.col("star_delta") > 0)
 
-        logger.info(f"trend_df:{trend_df}")
+        logger.info("trend_detection_completed", trend_count = len(trend_df))
         return trend_df
 
     else:

@@ -1,24 +1,31 @@
-import json
 import logging
-import logging.config
-import os
-from pathlib import Path
+from typing import Any
+
+import structlog
 
 
 def setup_logging() -> None:
-    # 設定ファイルのパス設定
-    current_dir = Path(__file__).parent
-    config_path = os.path.join(current_dir, "logging.config.json")
+    # 1. 共通プロセッサの定義
+    processors: list[Any] = [
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.stdlib.add_log_level,
+        structlog.processors.JSONRenderer(),
+    ]
 
-    # loggingの設定
-    if os.path.exists(config_path):
-        with open(config_path, encoding="utf-8") as f:
-            config = json.load(f)
-        logging.config.dictConfig(config)
-    else:
-        logging.basicConfig(level=logging.INFO)
-        logging.warning(f"logging config file not found: file {config_path}")
+    # structlogの設定
+    structlog.configure(
+        processors=processors,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+
+    # 標準loggingの設定
+    logging.basicConfig(
+        format="%(message)s",
+        level=logging.INFO,
+    )
 
 
-def get_logger(name: str) -> logging.Logger:
-    return logging.getLogger(name)
+def get_logger(name: str) -> Any:
+    return structlog.get_logger(name)
