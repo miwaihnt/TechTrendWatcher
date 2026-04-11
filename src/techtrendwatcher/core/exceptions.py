@@ -86,10 +86,19 @@ class NotionValidationError(NotionAPIError):
 class SnowflakeAPIError(ExternalAPIError):
     """Snowflake API特有の基底エラー"""
 
-    pass
+    def __init__(
+            self, 
+            message, 
+            status_code = None, 
+            error_code: int | None = None,
+            reason: str | None = None,
+            original_error: Exception | None = None) -> None:
+        
+        super().__init__(message, status_code, original_error)
+        self.error_code = error_code
+        self.reason = reason
 
 
 class SnowflakeAuthError(SnowflakeAPIError):
     """Snowflakeへの接続に関するエラー"""
-
     pass

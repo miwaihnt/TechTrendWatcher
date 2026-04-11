@@ -2,6 +2,7 @@ import asyncio
 
 import polars as pl
 from snowflake.snowpark import Session
+from snowflake.connector import errors
 
 from techtrendwatcher.core.config import SnowflakeConfig
 from techtrendwatcher.core.exceptions import SnowflakeAPIError, SnowflakeAuthError
@@ -40,7 +41,26 @@ class SnowflakeClient:
                 auto_create_table=True,
             )
 
+        except errors.ProgrammingError as e:
+
+            code = e.errno
+            reasons = {
+                2003: "object_not_found",                                                                                                                            
+                390101: "warehouse_suspended",                                                                                                                                               
+                904: "invalid_identifier",                                                                                                                                          
+            }
+
+            reason = reasons.get(code, "snowflake_programming_error")
+            raise SnowflakeAPIError(
+                f"Snowflakeの書き込みエラー",
+                error_code = code,
+                reason = reason,
+                original_error=e
+            ) from e
+
         except Exception as e:
             raise SnowflakeAPIError(
-                f"Snowflakeへの書き込みに失敗:{e}", original_error=e
+                f"Snowflakeへの書き込みに失敗:{e}", 
+                reason="Unknown Snowflake Error",                
+                original_error=e
             ) from e

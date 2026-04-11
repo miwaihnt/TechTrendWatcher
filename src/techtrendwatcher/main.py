@@ -117,10 +117,15 @@ async def main() -> None:
                 logger.warning("notion_validation_error_skip", error=str(e))
                 continue
 
-            except (GitHubAPIError, NotionAPIError, SnowflakeAPIError) as e:
+            except SnowflakeAPIError as e:
+                logger.error("snowflake_api_integration_failed_skip", error=str(e), reason=e.reason, code= e.error_code)
+                continue
+
+            except (GitHubAPIError, NotionAPIError) as e:
                 # それ以外のエラー
                 logger.error("api_integration_failed_skip", error=str(e))
                 continue
+
 
             except Exception as e:
                 # 予期せぬエラー
